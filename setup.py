@@ -15,6 +15,7 @@ base_requirements = [
     'xatlas',
     'pyvista',
     'pymeshfix',
+    'plyfile',
     'igraph',
     'transformers',
     'torch>=2.0.1',
