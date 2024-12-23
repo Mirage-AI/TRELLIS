@@ -20,6 +20,12 @@ base_requirements = [
     'transformers',
     'torch>=2.0.1',
     'torchvision>=0.19.0',
+    'xformers',
+    'flash-attn',
+    'kaolin',
+    'spconv-cu118;platform_system=="Linux"',
+    'gradio==4.44.1',
+    'gradio_litmodel3d==0.0.1',
 ]
 
 setup(
@@ -27,16 +33,6 @@ setup(
     version="0.1.0",
     packages=find_packages(),
     install_requires=base_requirements,
-    extras_require={
-        'full': [
-            'xformers',
-            'flash-attn',
-            'kaolin',
-            'spconv-cu118;platform_system=="Linux"',
-            'gradio==4.44.1',
-            'gradio_litmodel3d==0.0.1',
-        ]
-    },
     python_requires='>=3.10',
     include_package_data=True,
     dependency_links=[
