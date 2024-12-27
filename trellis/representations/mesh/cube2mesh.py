@@ -4,8 +4,8 @@ from easydict import EasyDict as edict
 from .utils_cube import *
 try:
     from .flexicubes.flexicubes import FlexiCubes
-except:
-    print("Please install kaolin and diso to use the mesh extractor.")
+except Exception as e:
+    print(f"Failed to import FlexiCubes: {e}")
 
 
 class MeshExtractResult:
@@ -26,7 +26,7 @@ class MeshExtractResult:
         self.tsdf_v = None
         self.tsdf_s = None
         self.reg_loss = None
-        
+
     def comput_face_normals(self, verts, faces):
         i0 = faces[..., 0].long()
         i1 = faces[..., 1].long()
@@ -39,7 +39,7 @@ class MeshExtractResult:
         face_normals = torch.nn.functional.normalize(face_normals, dim=1)
         # print(face_normals.min(), face_normals.max(), face_normals.shape)
         return face_normals[:, None, :].repeat(1, 3, 1)
-                
+
     def comput_v_normals(self, verts, faces):
         i0 = faces[..., 0].long()
         i1 = faces[..., 1].long()
@@ -55,7 +55,7 @@ class MeshExtractResult:
         v_normals.scatter_add_(0, i2[..., None].repeat(1, 3), face_normals)
 
         v_normals = torch.nn.functional.normalize(v_normals, dim=1)
-        return v_normals   
+        return v_normals
 
 
 class SparseFeatures2Mesh:
@@ -73,7 +73,7 @@ class SparseFeatures2Mesh:
         self.reg_v = verts.to(self.device)
         self.use_color = use_color
         self._calc_layout()
-    
+
     def _calc_layout(self):
         LAYOUTS = {
             'sdf': {'shape': (8, 1), 'size': 8},
@@ -91,25 +91,25 @@ class SparseFeatures2Mesh:
             v['range'] = (start, start + v['size'])
             start += v['size']
         self.feats_channels = start
-        
+
     def get_layout(self, feats : torch.Tensor, name : str):
         if name not in self.layouts:
             return None
         return feats[:, self.layouts[name]['range'][0]:self.layouts[name]['range'][1]].reshape(-1, *self.layouts[name]['shape'])
-    
+
     def __call__(self, cubefeats : SparseTensor, training=False):
         """
         Generates a mesh based on the specified sparse voxel structures.
         Args:
             cube_attrs [Nx21] : Sparse Tensor attrs about cube weights
-            verts_attrs [Nx10] : [0:1] SDF [1:4] deform [4:7] color [7:10] normal 
+            verts_attrs [Nx10] : [0:1] SDF [1:4] deform [4:7] color [7:10] normal
         Returns:
-            return the success tag and ni you loss, 
+            return the success tag and ni you loss,
         """
         # add sdf bias to verts_attrs
         coords = cubefeats.coords[:, 1:]
         feats = cubefeats.feats
-        
+
         sdf, deform, color, weights = [self.get_layout(feats, name) for name in ['sdf', 'deform', 'color', 'weights']]
         sdf += self.sdf_bias
         v_attrs = [sdf, deform, color] if self.use_color else [sdf, deform]
@@ -121,9 +121,9 @@ class SparseFeatures2Mesh:
         else:
             sdf_d, deform_d = v_attrs_d[..., 0], v_attrs_d[..., 1:4]
             colors_d = None
-            
+
         x_nx3 = get_defomed_verts(self.reg_v, deform_d, self.res)
-        
+
         vertices, faces, L_dev, colors = self.mesh_extractor(
             voxelgrid_vertices=x_nx3,
             scalar_field=sdf_d,
@@ -134,7 +134,7 @@ class SparseFeatures2Mesh:
             gamma_f=weights_d[:, 20],
             voxelgrid_colors=colors_d,
             training=training)
-        
+
         mesh = MeshExtractResult(vertices=vertices, faces=faces, vertex_attrs=colors, res=self.res)
         if training:
             if mesh.success:
